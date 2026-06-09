@@ -1,0 +1,138 @@
+{
+  "schemaVersion": 1,
+  "source": "Public/Homelab",
+  "files": [
+    {
+      "path": ".gitattributes",
+      "sha256": "2c2a2cc93d2bd22b4b4c68239d394f955e0ef27698ca3fdbb89ee1debfcbf754"
+    },
+    {
+      "path": ".github/workflows/validate.yml",
+      "sha256": "fe94d1533a8dd7064b8d4c04ecc3c939c060900432016b854b64587ec0393efd"
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "sha256": "58c30d2cc740ff5a405f2e693bee15792759d2ee75a79761ebc5cc4e917a9ef0"
+    },
+    {
+      "path": "docs/architecture.md",
+      "sha256": "1a73676c05c8ff147b70a00cce90ff1a2600fca943fa1039ebbe0f7b6ddb3913"
+    },
+    {
+      "path": "docs/browser-workstation.md",
+      "sha256": "43a3c63b63db86a15b4a261869ac246c5b48ed5194373b48a6988929575ea153"
+    },
+    {
+      "path": "docs/disaster-recovery.md",
+      "sha256": "4433b7f9020949ea25f9227f66364de9d182ffd834bf20311ad7cec2ab2f4c66"
+    },
+    {
+      "path": "docs/identity-aware-ingress.md",
+      "sha256": "3c644874c51818a629ad9f99848a7cac696324af67d02f61fcc3d1d63b7e6092"
+    },
+    {
+      "path": "docs/repo-backed-operations.md",
+      "sha256": "ab38e37944e9a28ff8208ae7a2a934ed6a1b9786871ca4bb23af5a63bd417bae"
+    },
+    {
+      "path": "docs/split-horizon-dns.md",
+      "sha256": "419f19aa078da83f93bbcd0172d37d1da6889c524bf821a238a01ef1db599931"
+    },
+    {
+      "path": "docs/travel-router.md",
+      "sha256": "47762d7b89bac050dcca764c6ef9f577f14071f68b972745ce28e106c3753802"
+    },
+    {
+      "path": "examples/Caddyfile",
+      "sha256": "db0950e02d5028b3e9307db38c862506b240e51dfccb8bc7e895305a1279c99d"
+    },
+    {
+      "path": "examples/recovery-plan.json",
+      "sha256": "74f8dc8364c0178934a91779fd76388a507a6f8d4ac9bb8dee49f392f59229af"
+    },
+    {
+      "path": "LICENSE",
+      "sha256": "1570fa16b5ff1c340b7c5de333518271f140e4a3cf934ce3552575f122a50ea2"
+    },
+    {
+      "path": "README.md",
+      "sha256": "c635801f600f82e2a93a9a687919c4bbe3215ae8a720d927ec8fc1efe1b2404f"
+    },
+    {
+      "path": "scripts/Test-PublicRepository.ps1",
+      "sha256": "2c26d9e3d344cb0ebd4f9e142234a92d1597c5a514ddd4196759e6aa303e0554"
+    },
+    {
+      "path": "scripts/Test-RecoveryPlan.ps1",
+      "sha256": "d1a2e4c2fcd8453f4977f9c2df7fd0e14361758569bce73ae9a4c3870cee17fa"
+    },
+    {
+      "path": "SECURITY.md",
+      "sha256": "293f0d23ea3bf2b17193802e571ff359b0dd2be441a982482da07535429234ff"
+    },
+    {
+      "path": "utilities/rice/atomic.omp.json",
+      "sha256": "2cfabdd3ce4ad59a3a0d261468aee47eb7fb508c5977482d069c6eb8a46c7202"
+    },
+    {
+      "path": "utilities/rice/README.md",
+      "sha256": "563bad7d37451d8cee6f0f4d201bb0086b05e86913e8ba0624580cef20b311b2"
+    },
+    {
+      "path": "utilities/rice/rice.cmd",
+      "sha256": "ee16c5f562e5358c3f783b0374b5839cf20b140f8da179847369c6a2f1162e21"
+    },
+    {
+      "path": "utilities/rice/rice.ps1",
+      "sha256": "5f5f2ae50d94569732d13f3af6eae32f7e2c741604ad3b30773d7c265d774d91"
+    },
+    {
+      "path": "utilities/rice/rice.sh",
+      "sha256": "1032e5c059dd81ef491cf70678e1f3b08bf5137b32d9748d94fb8774cf266173"
+    },
+    {
+      "path": "utilities/windows/borderless-image-viewer/Borderless-Image-Viewer.cmd",
+      "sha256": "56744aab2d109cf72f9eeb0361cb171723b48fccc28e9442b438badded053882"
+    },
+    {
+      "path": "utilities/windows/borderless-image-viewer/Borderless-Image-Viewer.ps1",
+      "sha256": "af6831201a209c36e347f0e845b597ef7fc9fc4f2f2c7c185cdda299afbc47e2"
+    },
+    {
+      "path": "utilities/windows/borderless-image-viewer/Run-Borderless-Image-Viewer-Hidden.vbs",
+      "sha256": "4b0065399639bc29a0870ff883cda4903a191dedd0c7276d75d8f437c01965dc"
+    },
+    {
+      "path": "utilities/windows/README.md",
+      "sha256": "615e37fca6b752a0ea6e70960a7f3fecd57577fb15720621a31c6ef8edc548ea"
+    },
+    {
+      "path": "utilities/windows/restart-explorer/Restart-Explorer.cmd",
+      "sha256": "5f1cfdcc9b06288c2e418af5f7e23ce787f261a7adae8155201775fd1a96363e"
+    },
+    {
+      "path": "utilities/windows/restart-explorer/Run-Restart-Explorer-Hidden.vbs",
+      "sha256": "81373743b6c73e349f9f9fb8dd7f862e077e71cbc50e7dfe47aaf7d1c3793725"
+    },
+    {
+      "path": "utilities/windows/self-verify/Capture-Terminal.ps1",
+      "sha256": "58c5386822e10e9a013181692a297de78320e5592d4c77464003712b28753925"
+    },
+    {
+      "path": "utilities/windows/self-verify/Run-Capture-Hidden.vbs",
+      "sha256": "59b6dd795bdf759be73de4eea83dcc43f9a0ba8d82e17ed9da47329ee9980585"
+    },
+    {
+      "path": "utilities/windows/toggle-ethernet-dns/Run-Toggle-Ethernet-DNS-Hidden.vbs",
+      "sha256": "c8acf13e2c7a248878fec810ac74ef1a59e35e11a5818dc91c69d2b5e50939a8"
+    },
+    {
+      "path": "utilities/windows/toggle-ethernet-dns/Toggle-Ethernet-DNS.cmd",
+      "sha256": "7926bbd7979ec4b7fefd5a8cc34073700e1ffccc1809cc731ef70580ef165043"
+    },
+    {
+      "path": "utilities/windows/toggle-ethernet-dns/Toggle-Ethernet-DNS.ps1",
+      "sha256": "f2aee2bfae17a0772c72615e5465f71d5b6d343224a1fa9db267d91303fa5aa4"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+app.example.com {
+    route {
+        reverse_proxy /outpost.goauthentik.io/* http://authentik-outpost:9000
+
+        forward_auth http://authentik-outpost:9000 {
+            uri /outpost.goauthentik.io/auth/caddy
+            copy_headers X-Authentik-Username X-Authentik-Groups X-Authentik-Email X-Authentik-Name X-Authentik-Uid
+            trusted_proxies private_ranges
+        }
+
+        reverse_proxy http://app:8080
+    }
+}

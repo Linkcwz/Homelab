@@ -1,0 +1,65 @@
+name: Validate public repository
+
+on:
+  pull_request:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+
+      - name: Validate repository content
+        shell: pwsh
+        run: |
+          ./scripts/Test-PublicRepository.ps1 .
+          ./scripts/Test-RecoveryPlan.ps1 ./examples/recovery-plan.json
+
+      - name: Parse PowerShell scripts
+        shell: pwsh
+        run: |
+          $failed = $false
+          Get-ChildItem -Recurse -Filter '*.ps1' | ForEach-Object {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              $_.FullName,
+              [ref] $tokens,
+              [ref] $errors
+            ) | Out-Null
+            if ($errors.Count -gt 0) {
+              $failed = $true
+              Write-Error "$($_.FullName): $($errors | Out-String)"
+            }
+          }
+          if ($failed) { throw 'PowerShell parser checks failed.' }
+
+      - name: Parse shell scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r -d '' script; do
+            bash -n "$script"
+          done < <(find . -type f -name '*.sh' -print0)
+
+      - name: Scan with Gitleaks
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="8.30.1"
+          tarball="gitleaks_${version}_linux_x64.tar.gz"
+          curl -fsSLo "$RUNNER_TEMP/$tarball" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${version}/${tarball}"
+          curl -fsSLo "$RUNNER_TEMP/gitleaks-checksums.txt" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${version}/gitleaks_${version}_checksums.txt"
+          (
+            cd "$RUNNER_TEMP"
+            grep "$tarball" gitleaks-checksums.txt | sha256sum --check -
+          )
+          tar -xzf "$RUNNER_TEMP/$tarball" -C "$RUNNER_TEMP" gitleaks
+          "$RUNNER_TEMP/gitleaks" dir . --no-banner --redact=100

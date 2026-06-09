@@ -1,0 +1,8 @@
+# Normalize line endings. Shell scripts and the cmd/sh polyglot oneshot MUST stay
+# LF so they run on Linux and parse as a polyglot regardless of a cloner's
+# core.autocrlf setting. PowerShell/VBScript stay CRLF for native Windows tooling.
+* text=auto
+*.sh   text eol=lf
+*.cmd  text eol=lf
+*.ps1  text eol=crlf
+*.vbs  text eol=crlf

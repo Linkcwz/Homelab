@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "services": [
+    {
+      "name": "network-edge",
+      "description": "Routing, firewall policy, DHCP, and break-glass access",
+      "dependsOn": [],
+      "checks": [
+        "default route exists",
+        "LAN client receives an address",
+        "public DNS resolution succeeds"
+      ]
+    },
+    {
+      "name": "local-dns",
+      "description": "Filtering, recursive resolution, and local service answers",
+      "dependsOn": ["network-edge"],
+      "checks": [
+        "public names resolve",
+        "local service names resolve",
+        "directory zones reach directory DNS"
+      ]
+    },
+    {
+      "name": "storage",
+      "description": "Datasets and application storage",
+      "dependsOn": ["network-edge", "local-dns"],
+      "checks": [
+        "required datasets are mounted",
+        "read and write probe succeeds",
+        "snapshot inventory is visible"
+      ]
+    },
+    {
+      "name": "directory-identity",
+      "description": "Directory users, groups, Kerberos, and file identity",
+      "dependsOn": ["local-dns", "storage"],
+      "checks": [
+        "directory query succeeds",
+        "time synchronization is healthy",
+        "test user authentication succeeds"
+      ]
+    },
+    {
+      "name": "web-identity",
+      "description": "OIDC, passkeys, and application authorization",
+      "dependsOn": ["local-dns", "storage", "directory-identity"],
+      "checks": [
+        "identity health endpoint succeeds",
+        "interactive login succeeds",
+        "denied user remains denied"
+      ]
+    },
+    {
+      "name": "ingress",
+      "description": "TLS termination and reverse proxy routing",
+      "dependsOn": ["local-dns", "web-identity"],
+      "checks": [
+        "Caddy configuration validates",
+        "certificate is current",
+        "protected route redirects to login"
+      ]
+    },
+    {
+      "name": "developer-platform",
+      "description": "Coder and browser IDE workspaces",
+      "dependsOn": ["storage", "web-identity", "ingress"],
+      "checks": [
+        "workspace starts",
+        "browser terminal connects",
+        "persistent file survives recreation"
+      ]
+    },
+    {
+      "name": "observability",
+      "description": "Metrics, dashboards, and alerting",
+      "dependsOn": ["network-edge", "local-dns", "storage", "ingress"],
+      "checks": [
+        "targets are discovered",
+        "expected metrics are fresh",
+        "test alert reaches its receiver"
+      ]
+    },
+    {
+      "name": "client-path",
+      "description": "End-to-end validation from a normal user endpoint",
+      "dependsOn": ["developer-platform", "observability"],
+      "checks": [
+        "LAN path succeeds",
+        "roaming path succeeds",
+        "logout and reauthentication succeed"
+      ]
+    }
+  ]
+}
