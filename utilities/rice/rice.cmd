@@ -7,13 +7,13 @@ set -euo pipefail
 
 # Native Linux ricer for any distro + every terminal emulator that is installed.
 # Cross-platform terminal rice: fonts, themes, QoL CLI tools, and an Oh My Posh
-# prompt. AI-agent config (Codex + Claude) is opt-in via --with-agent-config (off).
+# prompt. AI-agent config (Codex + Claude) is ON by default; pass --skip-agent-config to skip.
 
 SKIP_FONT_INSTALL=0
 SKIP_PACKAGE_INSTALL=0
 SKIP_SHELL_CHANGE=0
 SKIP_TERMINALS=0
-WITH_AGENT_CONFIG=0
+WITH_AGENT_CONFIG=1
 NO_PROMPT=0
 THEME=""
 DEFAULT_THEME="solarized-dark"
@@ -26,6 +26,7 @@ for arg in "$@"; do
     --skip-shell-change) SKIP_SHELL_CHANGE=1 ;;
     --skip-terminals) SKIP_TERMINALS=1 ;;
     --with-agent-config) WITH_AGENT_CONFIG=1 ;;
+    --skip-agent-config) WITH_AGENT_CONFIG=0 ;;
     --no-prompt) NO_PROMPT=1 ;;
     --theme=*) THEME="${arg#*=}" ;;
     -h|--help)
@@ -43,7 +44,8 @@ Options:
   --no-prompt              Skip the interactive theme picker; use the default
                            (solarized-dark)
   --skip-terminals         Do not touch terminal-emulator configs
-  --with-agent-config      Install + configure AI agents (Codex yolo, Claude bypass); OFF by default
+  --with-agent-config      (no-op; agent config is ON by default)
+  --skip-agent-config      Skip AI agent config (Codex + Claude); pass to opt out
   --skip-font-install      Do not install FiraCode Nerd Font
   --skip-package-install   Do not install OS packages
   --skip-shell-change      Do not run chsh to make fish the default shell
@@ -369,7 +371,7 @@ configure_codex_yolo() {
     inroot && !inserted && /^[[:space:]]*\[/ {
       print "approval_policy = \"never\""
       print "sandbox_mode = \"danger-full-access\""
-      print "model = \"gpt-5.5\""
+      print "model = \"gpt-4.5-mini\""
       print "model_reasoning_effort = \"high\""
       print ""
       inserted = 1
@@ -381,7 +383,7 @@ configure_codex_yolo() {
       if (!inserted) {
         print "approval_policy = \"never\""
         print "sandbox_mode = \"danger-full-access\""
-        print "model = \"gpt-5.5\""
+        print "model = \"gpt-4.5-mini\""
         print "model_reasoning_effort = \"high\""
       }
     }
@@ -395,6 +397,45 @@ configure_codex_yolo() {
       printf 'trust_level = "trusted"\n'
     } >> "$CODEX_CONFIG"
   fi
+
+  upsert_toml_section_key "$CODEX_CONFIG" "features" "hooks" "true"
+  upsert_toml_section_key "$CODEX_CONFIG" "tui" "theme" '"monokai-extended-origin"'
+  upsert_toml_section_key "$CODEX_CONFIG" "tui" "pet" '"null-signal"'
+  upsert_toml_section_key "$CODEX_CONFIG" 'plugins."github@openai-curated"' "enabled" "true"
+}
+
+upsert_toml_section_key() {
+  local file="$1" section="$2" key="$3" value="$4" tmp
+  tmp="${file}.rice-section-tmp.$$"
+  awk -v header="[$section]" -v key="$key" -v value="$value" '
+    BEGIN { in_section = 0; found_section = 0; wrote = 0 }
+    $0 == header {
+      in_section = 1
+      found_section = 1
+      print
+      next
+    }
+    in_section && /^[[:space:]]*\[/ {
+      if (!wrote) print key " = " value
+      in_section = 0
+      wrote = 1
+    }
+    in_section && $0 ~ "^[[:space:]]*" key "[[:space:]]*=" {
+      if (!wrote) print key " = " value
+      wrote = 1
+      next
+    }
+    { print }
+    END {
+      if (in_section && !wrote) print key " = " value
+      if (!found_section) {
+        print ""
+        print header
+        print key " = " value
+      }
+    }
+  ' "$file" > "$tmp"
+  mv "$tmp" "$file"
 }
 
 configure_claude_bypass() {
@@ -403,16 +444,16 @@ configure_claude_bypass() {
   if [ ! -s "$cfg" ]; then
     cat > "$cfg" <<'JSON'
 {
-  "permissions": { "defaultMode": "bypassPermissions" },
-  "skipDangerousModePermissionPrompt": true
+  "model": "claude-sonnet-4-6",
+  "permissions": { "defaultMode": "auto" }
 }
 JSON
-    step "Configured Claude Code bypass-permissions (new settings.json)"
+    step "Configured Claude Code (claude-sonnet-4-6, auto mode, new settings.json)"
     return
   fi
   if have node; then
-    node -e 'const fs=require("fs"),p=process.argv[1];let j={};try{j=JSON.parse(fs.readFileSync(p,"utf8")||"{}")}catch(e){}; j.permissions=j.permissions||{}; j.permissions.defaultMode="bypassPermissions"; j.skipDangerousModePermissionPrompt=true; fs.writeFileSync(p,JSON.stringify(j,null,2)+"\n")' "$cfg" \
-      && step "Merged Claude bypass-permissions into settings.json"
+    node -e 'const fs=require("fs"),p=process.argv[1];let j={};try{j=JSON.parse(fs.readFileSync(p,"utf8")||"{}")}catch(e){}; j.model="claude-sonnet-4-6"; j.permissions=j.permissions||{}; j.permissions.defaultMode="auto"; delete j.skipDangerousModePermissionPrompt; fs.writeFileSync(p,JSON.stringify(j,null,2)+"\n")' "$cfg" \
+      && step "Merged Claude sonnet-4-6 + auto mode into settings.json"
   elif have python3; then
     python3 - "$cfg" <<'PY'
 import json, sys
@@ -421,14 +462,15 @@ try:
     j = json.load(open(p))
 except Exception:
     j = {}
-j.setdefault("permissions", {})["defaultMode"] = "bypassPermissions"
-j["skipDangerousModePermissionPrompt"] = True
+j["model"] = "claude-sonnet-4-6"
+j.setdefault("permissions", {})["defaultMode"] = "auto"
+j.pop("skipDangerousModePermissionPrompt", None)
 json.dump(j, open(p, "w"), indent=2)
 open(p, "a").write("\n")
 PY
-    step "Merged Claude bypass-permissions into settings.json"
+    step "Merged Claude sonnet-4-6 + auto mode into settings.json"
   else
-    step "Claude settings.json exists; set permissions.defaultMode=bypassPermissions manually (no node/python3 to merge)"
+    step "Claude settings.json exists; set model=claude-sonnet-4-6 and permissions.defaultMode=auto manually (no node/python3)"
   fi
 }
 
@@ -508,20 +550,6 @@ install_theme() {
     {
       "alignment": "right",
       "segments": [
-        {
-          "background": "#303030",
-          "foreground": "#3C873A",
-          "leading_diamond": "\ue0b6",
-          "properties": {
-            "fetch_package_manager": true,
-            "npm_icon": " <#cc3a3a>\ue5fa</> ",
-            "yarn_icon": " <#348cba>\ue6a7</>"
-          },
-          "style": "diamond",
-          "template": "\ue718 {{ if .PackageManagerIcon }}{{ .PackageManagerIcon }} {{ end }}{{ .Full }}",
-          "trailing_diamond": "\ue0b4 ",
-          "type": "node"
-        },
         {
           "background": "#306998",
           "foreground": "#FFE873",
@@ -659,7 +687,7 @@ install_theme() {
             "windows": "\ue70f"
           },
           "style": "diamond",
-          "template": " {{ if .WSL }}WSL at {{ end }}{{.Icon}} ",
+          "template": " {{ .Icon }} ",
           "type": "os"
         },
         {
@@ -1270,7 +1298,7 @@ main() {
     configure_codex_yolo
     configure_claude_bypass
   else
-    step "AI agent configuration is off (pass --with-agent-config to enable)"
+    step "AI agent configuration skipped (--skip-agent-config)"
   fi
   install_fonts
   install_theme
@@ -1308,7 +1336,7 @@ param(
     [switch]$SkipFontInstall,
     [switch]$SkipPackageInstall,
     [switch]$SkipTerminals,
-    [switch]$WithAgentConfig
+    [switch]$SkipAgentConfig
 )
 
 $ErrorActionPreference = "Stop"
@@ -1475,6 +1503,7 @@ function Install-QolTools {
     Install-WingetPackage -Id "sharkdp.fd" -Name "fd" -Optional
     Install-WingetPackage -Id "junegunn.fzf" -Name "fzf" -Optional
     Install-WingetPackage -Id "ajeetdsouza.zoxide" -Name "zoxide" -Optional
+    Install-WingetPackage -Id "uutils.coreutils" -Name "coreutils" -Optional
     if (-not $SkipPackageInstall -and -not (Get-Module -ListAvailable PSFzf)) {
         try {
             Write-Step "Installing PSFzf module (CurrentUser)"
@@ -1823,7 +1852,7 @@ function Set-CodexYoloConfig {
     $rootKeys = @(
         'approval_policy = "never"',
         'sandbox_mode = "danger-full-access"',
-        'model = "gpt-5.5"',
+        'model = "gpt-4.5-mini"',
         'model_reasoning_effort = "high"'
     )
     $out = [Collections.Generic.List[string]]::new()
@@ -1845,7 +1874,55 @@ function Set-CodexYoloConfig {
         $out.Add('trust_level = "trusted"')
     }
     Set-Content -LiteralPath $configPath -Value ($out -join [Environment]::NewLine) -Encoding UTF8
-    Write-Step "Configured OpenAI Codex for unrestricted local execution"
+    Set-TomlSectionKey -Path $configPath -Section "features" -Key "hooks" -Value "true"
+    Set-TomlSectionKey -Path $configPath -Section "tui" -Key "theme" -Value '"monokai-extended-origin"'
+    Set-TomlSectionKey -Path $configPath -Section "tui" -Key "pet" -Value '"null-signal"'
+    Set-TomlSectionKey -Path $configPath -Section 'plugins."github@openai-curated"' -Key "enabled" -Value "true"
+    Write-Step "Configured OpenAI Codex defaults and appearance"
+}
+
+function Set-TomlSectionKey {
+    param(
+        [string]$Path,
+        [string]$Section,
+        [string]$Key,
+        [string]$Value
+    )
+    $header = "[$Section]"
+    $lines = @()
+    if (Test-Path -LiteralPath $Path) {
+        $lines = @(Get-Content -LiteralPath $Path -ErrorAction SilentlyContinue)
+    }
+    $out = [Collections.Generic.List[string]]::new()
+    $inSection = $false
+    $foundSection = $false
+    $wrote = $false
+    foreach ($line in $lines) {
+        if ($line -eq $header) {
+            $inSection = $true
+            $foundSection = $true
+            $out.Add($line)
+            continue
+        }
+        if ($inSection -and $line -match '^\s*\[') {
+            if (-not $wrote) { $out.Add("$Key = $Value") }
+            $inSection = $false
+            $wrote = $true
+        }
+        if ($inSection -and $line -match ("^\s*" + [regex]::Escape($Key) + "\s*=")) {
+            if (-not $wrote) { $out.Add("$Key = $Value") }
+            $wrote = $true
+            continue
+        }
+        $out.Add($line)
+    }
+    if ($inSection -and -not $wrote) { $out.Add("$Key = $Value") }
+    if (-not $foundSection) {
+        $out.Add("")
+        $out.Add($header)
+        $out.Add("$Key = $Value")
+    }
+    Set-Content -LiteralPath $Path -Value $out -Encoding UTF8
 }
 
 function Set-ClaudeBypassConfig {
@@ -1857,13 +1934,16 @@ function Set-ClaudeBypassConfig {
         try { $obj = Get-Content -Raw -LiteralPath $cfg | ConvertFrom-Json } catch { $obj = $null }
     }
     if (-not $obj) { $obj = [pscustomobject]@{} }
+    $obj | Add-Member -NotePropertyName model -NotePropertyValue "claude-sonnet-4-6" -Force
     if (-not $obj.permissions) {
         $obj | Add-Member -NotePropertyName permissions -NotePropertyValue ([pscustomobject]@{}) -Force
     }
-    $obj.permissions | Add-Member -NotePropertyName defaultMode -NotePropertyValue "bypassPermissions" -Force
-    $obj | Add-Member -NotePropertyName skipDangerousModePermissionPrompt -NotePropertyValue $true -Force
+    $obj.permissions | Add-Member -NotePropertyName defaultMode -NotePropertyValue "auto" -Force
+    if ($obj.PSObject.Properties['skipDangerousModePermissionPrompt']) {
+        $obj.PSObject.Properties.Remove('skipDangerousModePermissionPrompt')
+    }
     $obj | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $cfg -Encoding UTF8
-    Write-Step "Configured Claude Code bypass-permissions"
+    Write-Step "Configured Claude Code (claude-sonnet-4-6, auto mode)"
 }
 
 # ---------------------------------------------------------------------------
@@ -2070,15 +2150,15 @@ Select-Theme
 Ensure-Directory $UserBin
 Install-WingetPackage -Id "Fastfetch-cli.Fastfetch" -Name "fastfetch" -Optional
 Install-WingetPackage -Id "JanDeDobbeleer.OhMyPosh" -Name "Oh My Posh"
-if ($WithAgentConfig) { Install-WingetPackage -Id "OpenAI.Codex" -Name "OpenAI Codex" -Optional }
+if (-not $SkipAgentConfig) { Install-WingetPackage -Id "OpenAI.Codex" -Name "OpenAI Codex" -Optional }
 Install-QolTools
 Install-FiraCodeNerdFont
 Install-AtomicTheme
-if ($WithAgentConfig) {
+if (-not $SkipAgentConfig) {
     Set-CodexYoloConfig
     Set-ClaudeBypassConfig
 } else {
-    Write-Step "AI agent configuration is off (pass -WithAgentConfig to enable)"
+    Write-Step "AI agent configuration skipped (-SkipAgentConfig)"
 }
 
 $profiles = @(

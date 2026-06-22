@@ -40,7 +40,7 @@ flowchart TB
 
 | Layer | Technology | Responsibility |
 | --- | --- | --- |
-| Virtualization | Proxmox VE | Workload isolation, migration, snapshots, and recovery placement |
+| Virtualization | Proxmox VE | Workload isolation, migration, snapshots, recovery placement, and a standby control-plane node for near-instant failover |
 | Network edge | OPNsense and Caddy | Routing, firewall policy, TLS termination, and reverse proxying |
 | Name resolution | AdGuard Home and Unbound | Filtering, client policy, local overrides, and recursive resolution |
 | Directory identity | Samba AD | Domain users, groups, Kerberos, and SMB identity |
@@ -85,6 +85,9 @@ The design separates failure domains deliberately:
 - Losing the web identity provider must not remove hypervisor break-glass
   access.
 - Losing a compute node must not destroy the only copy of application data.
+- Losing the primary control-plane node should fail over to a standby
+  automatically — floating gateway/DNS virtual IPs plus block-level storage
+  replication — rather than requiring a manual migration.
 - Losing the private Git service must not erase operating knowledge.
 - A healthy daemon is not accepted as proof that the browser-facing path works.
 

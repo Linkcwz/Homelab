@@ -4,91 +4,91 @@
   "files": [
     {
       "path": ".gitattributes",
-      "sha256": "2c2a2cc93d2bd22b4b4c68239d394f955e0ef27698ca3fdbb89ee1debfcbf754"
+      "sha256": "417c1252a1de85f1cf8b20c63d58aad129df0a15ea29898b9da877ec4387186a"
     },
     {
       "path": ".github/workflows/validate.yml",
-      "sha256": "fe94d1533a8dd7064b8d4c04ecc3c939c060900432016b854b64587ec0393efd"
+      "sha256": "f55fcd356a31e9bfaa87e34b6f2f1b54f248f88a8baf9f8daf2bfe7094c43f55"
     },
     {
       "path": "CONTRIBUTING.md",
-      "sha256": "58c30d2cc740ff5a405f2e693bee15792759d2ee75a79761ebc5cc4e917a9ef0"
+      "sha256": "4df5bd1e996f11566ce4888a9a29e9db21e859ede8a777d60f48ea4d27fde6d2"
     },
     {
       "path": "docs/architecture.md",
-      "sha256": "1a73676c05c8ff147b70a00cce90ff1a2600fca943fa1039ebbe0f7b6ddb3913"
+      "sha256": "766f5dd3bf0594e7289cb0ec4ff24af8ed0bc45d7d70b0d00e567c5dccf608de"
     },
     {
       "path": "docs/browser-workstation.md",
-      "sha256": "43a3c63b63db86a15b4a261869ac246c5b48ed5194373b48a6988929575ea153"
+      "sha256": "1ac0a14d18915be7e476109c408c32c2a13005ca21350c9a7197777ebedfcd0f"
     },
     {
       "path": "docs/disaster-recovery.md",
-      "sha256": "4433b7f9020949ea25f9227f66364de9d182ffd834bf20311ad7cec2ab2f4c66"
+      "sha256": "fa53fb3c6d616c7689a08d148a1e157f9b22fddb80be56370e87bfac9bc8dfb1"
     },
     {
       "path": "docs/identity-aware-ingress.md",
-      "sha256": "3c644874c51818a629ad9f99848a7cac696324af67d02f61fcc3d1d63b7e6092"
+      "sha256": "6e074d77c0ff5e16e5bde6b42712af27811c28f3e14b01267d22697898e41be3"
     },
     {
       "path": "docs/repo-backed-operations.md",
-      "sha256": "ab38e37944e9a28ff8208ae7a2a934ed6a1b9786871ca4bb23af5a63bd417bae"
+      "sha256": "fb192ff1b34e56183f19c1e007f8f35b14932a0507ada7599ebf7300951818a6"
     },
     {
       "path": "docs/split-horizon-dns.md",
-      "sha256": "419f19aa078da83f93bbcd0172d37d1da6889c524bf821a238a01ef1db599931"
+      "sha256": "6ae8f4ff6e312493ccad8808e644d7470b18f158fa221f77a0761b7c98a2e36e"
     },
     {
       "path": "docs/travel-router.md",
-      "sha256": "47762d7b89bac050dcca764c6ef9f577f14071f68b972745ce28e106c3753802"
+      "sha256": "86139b75a2d3789ecbed96d8fcc28c3785f1114e3f1fa4d60eb3cc311eb530a7"
     },
     {
       "path": "examples/Caddyfile",
-      "sha256": "db0950e02d5028b3e9307db38c862506b240e51dfccb8bc7e895305a1279c99d"
+      "sha256": "c5c4d84bf4e69d2f6248abbf33fe19511ceb9f2189ced15be3163da650d5a820"
     },
     {
       "path": "examples/recovery-plan.json",
-      "sha256": "74f8dc8364c0178934a91779fd76388a507a6f8d4ac9bb8dee49f392f59229af"
+      "sha256": "e18311c34fb835e4041b2909cb9ad658ee120db495793e1cdf1580bd3c47c771"
     },
     {
       "path": "LICENSE",
-      "sha256": "1570fa16b5ff1c340b7c5de333518271f140e4a3cf934ce3552575f122a50ea2"
+      "sha256": "01ab484dcf19d26c8d6a72b1bdd6c2ec0bd39d5b705e97e91f8017290ab047bc"
     },
     {
       "path": "README.md",
-      "sha256": "c635801f600f82e2a93a9a687919c4bbe3215ae8a720d927ec8fc1efe1b2404f"
+      "sha256": "74bf83163c7870f12fffab8caaf061e6bd24de2bb467c1bda895e27b3271c962"
     },
     {
       "path": "scripts/Test-PublicRepository.ps1",
-      "sha256": "2c26d9e3d344cb0ebd4f9e142234a92d1597c5a514ddd4196759e6aa303e0554"
+      "sha256": "7a0bdc49198985913b0147676fc5ffc35726d0154f4d10d37fb07f94c9a55416"
     },
     {
       "path": "scripts/Test-RecoveryPlan.ps1",
-      "sha256": "d1a2e4c2fcd8453f4977f9c2df7fd0e14361758569bce73ae9a4c3870cee17fa"
+      "sha256": "2514c2593b267f4b084ebbe6c03af4ca70f61f81c928d7522c179573e96b7805"
     },
     {
       "path": "SECURITY.md",
-      "sha256": "293f0d23ea3bf2b17193802e571ff359b0dd2be441a982482da07535429234ff"
+      "sha256": "b35f403f131e97d8c4f85c5a9a4804c34d1bc81d94adc20aa2e8aa38d0702cc0"
     },
     {
       "path": "utilities/rice/atomic.omp.json",
-      "sha256": "2cfabdd3ce4ad59a3a0d261468aee47eb7fb508c5977482d069c6eb8a46c7202"
+      "sha256": "3ca2c78125c38e11046891374efc43dde64a307baf178d4fcffee0ebd2d0c394"
     },
     {
       "path": "utilities/rice/README.md",
-      "sha256": "563bad7d37451d8cee6f0f4d201bb0086b05e86913e8ba0624580cef20b311b2"
+      "sha256": "0f3a244d376f84638da319122859e656c0ea8f21588f2ad9d38a6d90d0e4fc84"
     },
     {
       "path": "utilities/rice/rice.cmd",
-      "sha256": "ee16c5f562e5358c3f783b0374b5839cf20b140f8da179847369c6a2f1162e21"
+      "sha256": "c3d31c01ce3ef156f373cf1227dc4dd58afcae5df2f43ce39096a3575d258c0e"
     },
     {
       "path": "utilities/rice/rice.ps1",
-      "sha256": "5f5f2ae50d94569732d13f3af6eae32f7e2c741604ad3b30773d7c265d774d91"
+      "sha256": "9ad8d4cb8f9432ee6300d6c9a9ad944d91bf6727d4c4da185977a0b4191a36ef"
     },
     {
       "path": "utilities/rice/rice.sh",
-      "sha256": "1032e5c059dd81ef491cf70678e1f3b08bf5137b32d9748d94fb8774cf266173"
+      "sha256": "3fb37aa8f7a6a3fe77ff50845dc43ff160f9a2f87a00dbad71847fad25cccf56"
     },
     {
       "path": "utilities/windows/borderless-image-viewer/Borderless-Image-Viewer.cmd",
@@ -96,15 +96,15 @@
     },
     {
       "path": "utilities/windows/borderless-image-viewer/Borderless-Image-Viewer.ps1",
-      "sha256": "af6831201a209c36e347f0e845b597ef7fc9fc4f2f2c7c185cdda299afbc47e2"
+      "sha256": "1df7c0e902142501fdca936042db209437b4813b1cbd43bd219c1aad35d1341a"
     },
     {
       "path": "utilities/windows/borderless-image-viewer/Run-Borderless-Image-Viewer-Hidden.vbs",
-      "sha256": "4b0065399639bc29a0870ff883cda4903a191dedd0c7276d75d8f437c01965dc"
+      "sha256": "14619468c12d1dcbd90a4b57d9c872a4b864105abc491e3489eebe7e0ee63e0c"
     },
     {
       "path": "utilities/windows/README.md",
-      "sha256": "615e37fca6b752a0ea6e70960a7f3fecd57577fb15720621a31c6ef8edc548ea"
+      "sha256": "82caf90e9a918c8e80ecef6044e2e2df66d5d3c1dade69fe510270c430d890b5"
     },
     {
       "path": "utilities/windows/restart-explorer/Restart-Explorer.cmd",
@@ -112,19 +112,19 @@
     },
     {
       "path": "utilities/windows/restart-explorer/Run-Restart-Explorer-Hidden.vbs",
-      "sha256": "81373743b6c73e349f9f9fb8dd7f862e077e71cbc50e7dfe47aaf7d1c3793725"
+      "sha256": "2e97e774ff61c73f019db94073a718e20d26c813d8eb286b5ce6aff20b2d9b2a"
     },
     {
       "path": "utilities/windows/self-verify/Capture-Terminal.ps1",
-      "sha256": "58c5386822e10e9a013181692a297de78320e5592d4c77464003712b28753925"
+      "sha256": "472ac6d073e5417df44fda4b82d47859dd4f721480f01dd07545052a1bea8c56"
     },
     {
       "path": "utilities/windows/self-verify/Run-Capture-Hidden.vbs",
-      "sha256": "59b6dd795bdf759be73de4eea83dcc43f9a0ba8d82e17ed9da47329ee9980585"
+      "sha256": "2a333b75f8434fa9cc8a6c1c87219443938df01cb25d191c65ccf85b33b7c7fb"
     },
     {
       "path": "utilities/windows/toggle-ethernet-dns/Run-Toggle-Ethernet-DNS-Hidden.vbs",
-      "sha256": "c8acf13e2c7a248878fec810ac74ef1a59e35e11a5818dc91c69d2b5e50939a8"
+      "sha256": "b74b1cfef7b11598d4153b5cfe8e4b8e67a70cc73a339361ba038f1b695e0d83"
     },
     {
       "path": "utilities/windows/toggle-ethernet-dns/Toggle-Ethernet-DNS.cmd",
@@ -132,7 +132,7 @@
     },
     {
       "path": "utilities/windows/toggle-ethernet-dns/Toggle-Ethernet-DNS.ps1",
-      "sha256": "f2aee2bfae17a0772c72615e5465f71d5b6d343224a1fa9db267d91303fa5aa4"
+      "sha256": "344f4052bce2e61c4965bd528c2a4e6df87660a83cdc70764cdece54f501b97c"
     }
   ]
 }

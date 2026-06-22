@@ -26,6 +26,12 @@ Workloads were migrated off one Proxmox node (NA1) and onto another (Delta) whil
 the platform stayed usable throughout — the dependency-ordered recovery above,
 run live.
 
+The control plane now also has **near-instant automatic failover**: a second node
+(NA2) holds floating gateway and DNS virtual IPs and receives block-level storage
+replication, so control-plane services (routing, DNS, directory) move to the
+standby without a manual migration. Automatic failover handles the fast case; the
+dependency-ordered recovery above still governs a full cold rebuild.
+
 Critical capabilities are also replicated off the primary cluster entirely, so
 they survive losing the main hypervisor:
 

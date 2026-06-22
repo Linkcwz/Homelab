@@ -4,7 +4,7 @@ param(
     [switch]$SkipFontInstall,
     [switch]$SkipPackageInstall,
     [switch]$SkipTerminals,
-    [switch]$WithAgentConfig
+    [switch]$SkipAgentConfig
 )
 
 $ErrorActionPreference = "Stop"
@@ -171,6 +171,7 @@ function Install-QolTools {
     Install-WingetPackage -Id "sharkdp.fd" -Name "fd" -Optional
     Install-WingetPackage -Id "junegunn.fzf" -Name "fzf" -Optional
     Install-WingetPackage -Id "ajeetdsouza.zoxide" -Name "zoxide" -Optional
+    Install-WingetPackage -Id "uutils.coreutils" -Name "coreutils" -Optional
     if (-not $SkipPackageInstall -and -not (Get-Module -ListAvailable PSFzf)) {
         try {
             Write-Step "Installing PSFzf module (CurrentUser)"
@@ -519,7 +520,7 @@ function Set-CodexYoloConfig {
     $rootKeys = @(
         'approval_policy = "never"',
         'sandbox_mode = "danger-full-access"',
-        'model = "gpt-5.5"',
+        'model = "gpt-4.5-mini"',
         'model_reasoning_effort = "high"'
     )
     $out = [Collections.Generic.List[string]]::new()
@@ -541,7 +542,55 @@ function Set-CodexYoloConfig {
         $out.Add('trust_level = "trusted"')
     }
     Set-Content -LiteralPath $configPath -Value ($out -join [Environment]::NewLine) -Encoding UTF8
-    Write-Step "Configured OpenAI Codex for unrestricted local execution"
+    Set-TomlSectionKey -Path $configPath -Section "features" -Key "hooks" -Value "true"
+    Set-TomlSectionKey -Path $configPath -Section "tui" -Key "theme" -Value '"monokai-extended-origin"'
+    Set-TomlSectionKey -Path $configPath -Section "tui" -Key "pet" -Value '"null-signal"'
+    Set-TomlSectionKey -Path $configPath -Section 'plugins."github@openai-curated"' -Key "enabled" -Value "true"
+    Write-Step "Configured OpenAI Codex defaults and appearance"
+}
+
+function Set-TomlSectionKey {
+    param(
+        [string]$Path,
+        [string]$Section,
+        [string]$Key,
+        [string]$Value
+    )
+    $header = "[$Section]"
+    $lines = @()
+    if (Test-Path -LiteralPath $Path) {
+        $lines = @(Get-Content -LiteralPath $Path -ErrorAction SilentlyContinue)
+    }
+    $out = [Collections.Generic.List[string]]::new()
+    $inSection = $false
+    $foundSection = $false
+    $wrote = $false
+    foreach ($line in $lines) {
+        if ($line -eq $header) {
+            $inSection = $true
+            $foundSection = $true
+            $out.Add($line)
+            continue
+        }
+        if ($inSection -and $line -match '^\s*\[') {
+            if (-not $wrote) { $out.Add("$Key = $Value") }
+            $inSection = $false
+            $wrote = $true
+        }
+        if ($inSection -and $line -match ("^\s*" + [regex]::Escape($Key) + "\s*=")) {
+            if (-not $wrote) { $out.Add("$Key = $Value") }
+            $wrote = $true
+            continue
+        }
+        $out.Add($line)
+    }
+    if ($inSection -and -not $wrote) { $out.Add("$Key = $Value") }
+    if (-not $foundSection) {
+        $out.Add("")
+        $out.Add($header)
+        $out.Add("$Key = $Value")
+    }
+    Set-Content -LiteralPath $Path -Value $out -Encoding UTF8
 }
 
 function Set-ClaudeBypassConfig {
@@ -553,13 +602,16 @@ function Set-ClaudeBypassConfig {
         try { $obj = Get-Content -Raw -LiteralPath $cfg | ConvertFrom-Json } catch { $obj = $null }
     }
     if (-not $obj) { $obj = [pscustomobject]@{} }
+    $obj | Add-Member -NotePropertyName model -NotePropertyValue "claude-sonnet-4-6" -Force
     if (-not $obj.permissions) {
         $obj | Add-Member -NotePropertyName permissions -NotePropertyValue ([pscustomobject]@{}) -Force
     }
-    $obj.permissions | Add-Member -NotePropertyName defaultMode -NotePropertyValue "bypassPermissions" -Force
-    $obj | Add-Member -NotePropertyName skipDangerousModePermissionPrompt -NotePropertyValue $true -Force
+    $obj.permissions | Add-Member -NotePropertyName defaultMode -NotePropertyValue "auto" -Force
+    if ($obj.PSObject.Properties['skipDangerousModePermissionPrompt']) {
+        $obj.PSObject.Properties.Remove('skipDangerousModePermissionPrompt')
+    }
     $obj | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $cfg -Encoding UTF8
-    Write-Step "Configured Claude Code bypass-permissions"
+    Write-Step "Configured Claude Code (claude-sonnet-4-6, auto mode)"
 }
 
 # ---------------------------------------------------------------------------
@@ -766,15 +818,15 @@ Select-Theme
 Ensure-Directory $UserBin
 Install-WingetPackage -Id "Fastfetch-cli.Fastfetch" -Name "fastfetch" -Optional
 Install-WingetPackage -Id "JanDeDobbeleer.OhMyPosh" -Name "Oh My Posh"
-if ($WithAgentConfig) { Install-WingetPackage -Id "OpenAI.Codex" -Name "OpenAI Codex" -Optional }
+if (-not $SkipAgentConfig) { Install-WingetPackage -Id "OpenAI.Codex" -Name "OpenAI Codex" -Optional }
 Install-QolTools
 Install-FiraCodeNerdFont
 Install-AtomicTheme
-if ($WithAgentConfig) {
+if (-not $SkipAgentConfig) {
     Set-CodexYoloConfig
     Set-ClaudeBypassConfig
 } else {
-    Write-Step "AI agent configuration is off (pass -WithAgentConfig to enable)"
+    Write-Step "AI agent configuration skipped (-SkipAgentConfig)"
 }
 
 $profiles = @(

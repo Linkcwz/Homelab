@@ -17,6 +17,12 @@ Windows workstation (Hermes) and even a pocket-sized travel router — so access
 never depended on a single box. The failure-domain separation described below is
 exactly what made that migration boring instead of catastrophic.
 
+The platform has since gained **near-instant automatic failover**: a second
+Proxmox control-plane node carries floating gateway and DNS virtual IPs plus
+block-level storage replication, so losing the primary node fails over to the
+standby on its own — automatic resilience layered on top of the manual-migration
+resilience it already proved.
+
 You do not have to take that on faith. The recovery dependency order is data, not
 prose: run [`scripts/Test-RecoveryPlan.ps1`](scripts/Test-RecoveryPlan.ps1)
 against [`examples/recovery-plan.json`](examples/recovery-plan.json) and it
