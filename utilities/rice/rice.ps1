@@ -614,6 +614,30 @@ function Set-ClaudeBypassConfig {
     Write-Step "Configured Claude Code (claude-sonnet-4-6, auto mode)"
 }
 
+function Install-ClaudeCode {
+    if (Get-Command claude -ErrorAction SilentlyContinue) {
+        Write-Step "Claude Code already installed ($((claude --version 2>$null | Select-Object -First 1)))"
+        return
+    }
+    # Anthropic's preferred install is the native PowerShell installer (user-scoped).
+    try {
+        Write-Step "Installing Claude Code (native installer)"
+        Invoke-Expression (Invoke-RestMethod -Uri 'https://claude.ai/install.ps1')
+        Refresh-ProcessPath
+    } catch {
+        Write-Warning "Native Claude Code installer failed: $($_.Exception.Message)"
+    }
+    if (-not (Get-Command claude -ErrorAction SilentlyContinue)) {
+        if (Get-Command npm -ErrorAction SilentlyContinue) {
+            Write-Step "Falling back to npm for Claude Code"
+            & npm install -g '@anthropic-ai/claude-code'
+            Refresh-ProcessPath
+        } else {
+            Write-Warning "Claude Code not installed (no native installer success and npm unavailable)."
+        }
+    }
+}
+
 # ---------------------------------------------------------------------------
 # PowerShell profile (managed block)
 # ---------------------------------------------------------------------------
@@ -1077,7 +1101,14 @@ Select-Theme
 Ensure-Directory $UserBin
 Install-WingetPackage -Id "Fastfetch-cli.Fastfetch" -Name "fastfetch" -Optional
 Install-WingetPackage -Id "JanDeDobbeleer.OhMyPosh" -Name "Oh My Posh"
-if (-not $SkipAgentConfig) { Install-WingetPackage -Id "OpenAI.Codex" -Name "OpenAI Codex" -Optional }
+if (-not $SkipAgentConfig) {
+    if (Get-Command codex -ErrorAction SilentlyContinue) {
+        Write-Step "OpenAI Codex already installed ($((codex --version 2>$null | Select-Object -First 1)))"
+    } else {
+        Install-WingetPackage -Id "OpenAI.Codex" -Name "OpenAI Codex" -Optional
+    }
+    Install-ClaudeCode
+}
 Install-QolTools
 Install-FiraCodeNerdFont
 Install-AtomicTheme

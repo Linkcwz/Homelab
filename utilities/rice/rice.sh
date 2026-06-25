@@ -360,8 +360,38 @@ install_ohmyposh() {
 }
 
 install_codex() {
+  if have codex; then
+    step "OpenAI Codex already installed ($(codex --version 2>/dev/null | head -n1 || echo present))"
+    return
+  fi
   have npm || { step "npm unavailable; skipping Codex install"; return; }
+  # npm's global install renames the package dir into place; a half-removed prior
+  # install leaves a non-empty dir and a .codex-* temp, which makes the rename fail
+  # with ENOTEMPTY. Clear those first so the (preferred) npm install is idempotent.
+  local nm
+  nm="$(npm root -g 2>/dev/null || echo /usr/local/lib/node_modules)"
+  if [ -e "$nm/@openai/codex" ] || ls "$nm/@openai/".codex-* >/dev/null 2>&1; then
+    step "Clearing a stale @openai/codex global install (ENOTEMPTY guard)"
+    need_root npm rm -g @openai/codex >/dev/null 2>&1 || true
+    need_root rm -rf "$nm/@openai/codex" "$nm/@openai/".codex-* 2>/dev/null || true
+  fi
   need_root npm install -g @openai/codex || step "Codex install failed; continuing"
+}
+
+install_claude() {
+  if have claude; then
+    step "Claude Code already installed ($(claude --version 2>/dev/null | head -n1 || echo present))"
+    return
+  fi
+  # Anthropic's preferred install is the native installer (user-scoped, ~/.local/bin).
+  if have curl && curl -fsSL https://claude.ai/install.sh | bash; then
+    have claude || export PATH="$HOME/.local/bin:$PATH"
+    step "Installed Claude Code (native installer)"
+  elif have npm; then
+    need_root npm install -g @anthropic-ai/claude-code || step "Claude Code install failed; continuing"
+  else
+    step "Neither curl nor npm available; skipping Claude Code install"
+  fi
 }
 
 configure_codex_yolo() {
@@ -1551,6 +1581,7 @@ main() {
   if [ "$WITH_AGENT_CONFIG" -eq 1 ]; then
     install_codex
     configure_codex_yolo
+    install_claude
     configure_claude_bypass
   else
     step "AI agent configuration skipped (--skip-agent-config)"

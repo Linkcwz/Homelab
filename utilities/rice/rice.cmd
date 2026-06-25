@@ -364,8 +364,38 @@ install_ohmyposh() {
 }
 
 install_codex() {
+  if have codex; then
+    step "OpenAI Codex already installed ($(codex --version 2>/dev/null | head -n1 || echo present))"
+    return
+  fi
   have npm || { step "npm unavailable; skipping Codex install"; return; }
+  # npm's global install renames the package dir into place; a half-removed prior
+  # install leaves a non-empty dir and a .codex-* temp, which makes the rename fail
+  # with ENOTEMPTY. Clear those first so the (preferred) npm install is idempotent.
+  local nm
+  nm="$(npm root -g 2>/dev/null || echo /usr/local/lib/node_modules)"
+  if [ -e "$nm/@openai/codex" ] || ls "$nm/@openai/".codex-* >/dev/null 2>&1; then
+    step "Clearing a stale @openai/codex global install (ENOTEMPTY guard)"
+    need_root npm rm -g @openai/codex >/dev/null 2>&1 || true
+    need_root rm -rf "$nm/@openai/codex" "$nm/@openai/".codex-* 2>/dev/null || true
+  fi
   need_root npm install -g @openai/codex || step "Codex install failed; continuing"
+}
+
+install_claude() {
+  if have claude; then
+    step "Claude Code already installed ($(claude --version 2>/dev/null | head -n1 || echo present))"
+    return
+  fi
+  # Anthropic's preferred install is the native installer (user-scoped, ~/.local/bin).
+  if have curl && curl -fsSL https://claude.ai/install.sh | bash; then
+    have claude || export PATH="$HOME/.local/bin:$PATH"
+    step "Installed Claude Code (native installer)"
+  elif have npm; then
+    need_root npm install -g @anthropic-ai/claude-code || step "Claude Code install failed; continuing"
+  else
+    step "Neither curl nor npm available; skipping Claude Code install"
+  fi
 }
 
 configure_codex_yolo() {
@@ -1555,6 +1585,7 @@ main() {
   if [ "$WITH_AGENT_CONFIG" -eq 1 ]; then
     install_codex
     configure_codex_yolo
+    install_claude
     configure_claude_bypass
   else
     step "AI agent configuration skipped (--skip-agent-config)"
@@ -2206,6 +2237,30 @@ function Set-ClaudeBypassConfig {
     Write-Step "Configured Claude Code (claude-sonnet-4-6, auto mode)"
 }
 
+function Install-ClaudeCode {
+    if (Get-Command claude -ErrorAction SilentlyContinue) {
+        Write-Step "Claude Code already installed ($((claude --version 2>$null | Select-Object -First 1)))"
+        return
+    }
+    # Anthropic's preferred install is the native PowerShell installer (user-scoped).
+    try {
+        Write-Step "Installing Claude Code (native installer)"
+        Invoke-Expression (Invoke-RestMethod -Uri 'https://claude.ai/install.ps1')
+        Refresh-ProcessPath
+    } catch {
+        Write-Warning "Native Claude Code installer failed: $($_.Exception.Message)"
+    }
+    if (-not (Get-Command claude -ErrorAction SilentlyContinue)) {
+        if (Get-Command npm -ErrorAction SilentlyContinue) {
+            Write-Step "Falling back to npm for Claude Code"
+            & npm install -g '@anthropic-ai/claude-code'
+            Refresh-ProcessPath
+        } else {
+            Write-Warning "Claude Code not installed (no native installer success and npm unavailable)."
+        }
+    }
+}
+
 # ---------------------------------------------------------------------------
 # PowerShell profile (managed block)
 # ---------------------------------------------------------------------------
@@ -2669,7 +2724,14 @@ Select-Theme
 Ensure-Directory $UserBin
 Install-WingetPackage -Id "Fastfetch-cli.Fastfetch" -Name "fastfetch" -Optional
 Install-WingetPackage -Id "JanDeDobbeleer.OhMyPosh" -Name "Oh My Posh"
-if (-not $SkipAgentConfig) { Install-WingetPackage -Id "OpenAI.Codex" -Name "OpenAI Codex" -Optional }
+if (-not $SkipAgentConfig) {
+    if (Get-Command codex -ErrorAction SilentlyContinue) {
+        Write-Step "OpenAI Codex already installed ($((codex --version 2>$null | Select-Object -First 1)))"
+    } else {
+        Install-WingetPackage -Id "OpenAI.Codex" -Name "OpenAI Codex" -Optional
+    }
+    Install-ClaudeCode
+}
 Install-QolTools
 Install-FiraCodeNerdFont
 Install-AtomicTheme

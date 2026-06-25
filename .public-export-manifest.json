@@ -80,15 +80,15 @@
     },
     {
       "path": "utilities/rice/rice.cmd",
-      "sha256": "f8aa628dea05dcdf3373679a330c2e54f4751a2cd28d90aba14f7bc46dd34a35"
+      "sha256": "806925fc00b392d2b879e847686d69a06d76e1cfd0eeaa014cbf38c4b35c20a0"
     },
     {
       "path": "utilities/rice/rice.ps1",
-      "sha256": "4abf98336335af245475567af242e7ccdabd8dd2fbdd16f09deee8dd2110f15a"
+      "sha256": "0ac2f41bdc73c4772b10a5535fe0fc486f1d55f2c30d4a8c3aca66b50309630b"
     },
     {
       "path": "utilities/rice/rice.sh",
-      "sha256": "a2fb17d98366127b356726c71e58725dc173d4ce43a2c3ffa10abf47f806185c"
+      "sha256": "c4cf01808af5bfb1fa93665c71572c7a613695344d7bfca324c7273bf0274c5c"
     },
     {
       "path": "utilities/windows/borderless-image-viewer/Borderless-Image-Viewer.cmd",
