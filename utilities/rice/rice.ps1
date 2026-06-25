@@ -652,23 +652,75 @@ if (Get-Command oh-my-posh -ErrorAction SilentlyContinue) {
 if (-not [Console]::IsOutputRedirected -and -not [Console]::IsInputRedirected) {
     if ('$batTheme') { `$env:BAT_THEME = '$batTheme' }
     if ('$fzfOpts') { `$env:FZF_DEFAULT_OPTS = '$fzfOpts' }
-    if (Get-Command rg -ErrorAction SilentlyContinue) { `$env:FZF_DEFAULT_COMMAND = 'rg --files --hidden --glob "!.git/*"' }
+    if (Get-Command rg -ErrorAction SilentlyContinue) {
+        `$env:FZF_DEFAULT_COMMAND = 'rg --files --hidden --glob "!.git/*"'
+    } elseif (Get-Command fd -ErrorAction SilentlyContinue) {
+        `$env:FZF_DEFAULT_COMMAND = 'fd --type f --hidden --exclude .git'
+    }
+    if (`$env:FZF_DEFAULT_COMMAND) { `$env:FZF_CTRL_T_COMMAND = `$env:FZF_DEFAULT_COMMAND }
+    if (Get-Command bat -ErrorAction SilentlyContinue) {
+        `$env:FZF_CTRL_T_OPTS = "--preview 'bat --color=always --style=numbers --line-range=:200 {}'"
+    }
     if (Get-Command zoxide -ErrorAction SilentlyContinue) { Invoke-Expression (& { (zoxide init powershell | Out-String) }) }
+
+    # modern CLI replacements
     if (Get-Command eza -ErrorAction SilentlyContinue) {
         function ls { eza --group-directories-first --icons=auto `@args }
         function ll { eza -lah --group-directories-first --icons=auto --git `@args }
         function la { eza -a --group-directories-first --icons=auto `@args }
         function lt { eza --tree --level=2 --icons=auto `@args }
+        function ltt { eza --tree --level=4 --icons=auto `@args }
     }
+    if (Get-Command bat -ErrorAction SilentlyContinue) { function cat { bat --paging=never `@args } }
+    if (Get-Command rg  -ErrorAction SilentlyContinue) { function grep { rg `@args } }
+    if (Get-Command fd  -ErrorAction SilentlyContinue) { function find { fd `@args } }
+
     if (Get-Module -ListAvailable PSFzf) {
         Import-Module PSFzf -ErrorAction SilentlyContinue
         Set-PsFzfOption -PSReadlineChordProvider 'Ctrl+t' -PSReadlineChordReverseHistory 'Ctrl+r' -ErrorAction SilentlyContinue
     }
     if (Get-Command Set-PSReadLineOption -ErrorAction SilentlyContinue) {
-        Set-PSReadLineOption -PredictionSource History -ErrorAction SilentlyContinue
-        Set-PSReadLineOption -PredictionViewStyle ListView -ErrorAction SilentlyContinue
+        Set-PSReadLineOption -HistoryNoDuplicates -ErrorAction SilentlyContinue
+        Set-PSReadLineOption -HistorySearchCursorMovesToEnd -ErrorAction SilentlyContinue
+        Set-PSReadLineOption -MaximumHistoryCount 100000 -ErrorAction SilentlyContinue
+        Set-PSReadLineOption -BellStyle None -ErrorAction SilentlyContinue
+        # Prediction (inline/list suggestions from history) needs PSReadLine >= 2.2;
+        # PS 5.1 ships 2.0.0 where these params don't exist, so version-guard them.
+        `$ricePsrl = (Get-Module PSReadLine | Select-Object -First 1).Version
+        if (`$ricePsrl -and `$ricePsrl -ge [version]'2.2.0') {
+            Set-PSReadLineOption -PredictionSource History -ErrorAction SilentlyContinue
+            Set-PSReadLineOption -PredictionViewStyle ListView -ErrorAction SilentlyContinue
+        }
+    }
+    # Tab shows a selectable completion LIST (menu), not a one-at-a-time cycle.
+    if (Get-Command Set-PSReadLineKeyHandler -ErrorAction SilentlyContinue) {
+        Set-PSReadLineKeyHandler -Key Tab -Function MenuComplete -ErrorAction SilentlyContinue
+        Set-PSReadLineKeyHandler -Key UpArrow -Function HistorySearchBackward -ErrorAction SilentlyContinue
+        Set-PSReadLineKeyHandler -Key DownArrow -Function HistorySearchForward -ErrorAction SilentlyContinue
+        Set-PSReadLineKeyHandler -Key Ctrl+w -Function BackwardKillWord -ErrorAction SilentlyContinue
     }
 }
+
+# quality-of-life functions
+function .. { Set-Location .. }
+function ... { Set-Location ../.. }
+function .... { Set-Location ../../.. }
+function mkcd { param([Parameter(Mandatory)][string]`$Path) New-Item -ItemType Directory -Force -Path `$Path | Out-Null; Set-Location `$Path }
+function which { param([Parameter(Mandatory)][string]`$Name) (Get-Command `$Name -ErrorAction SilentlyContinue).Source }
+function touch { param([Parameter(Mandatory)][string]`$Path) if (Test-Path -LiteralPath `$Path) { (Get-Item -LiteralPath `$Path).LastWriteTime = Get-Date } else { New-Item -ItemType File -Path `$Path | Out-Null } }
+function reload { . `$PROFILE }
+
+# git shortcuts
+function gst { git status `@args }
+function ga  { git add `@args }
+function gc  { git commit `@args }
+function gco { git checkout `@args }
+function gsw { git switch `@args }
+function gp  { git push `@args }
+function gl  { git pull `@args }
+function gd  { git diff `@args }
+function gb  { git branch `@args }
+function glog { git log --oneline --graph --decorate `@args }
 
 # Add your own host/ssh shortcut functions here.
 function update {
@@ -680,20 +732,227 @@ $ManagedEnd
 "@
 }
 
-function Update-ManagedProfile {
-    param([Parameter(Mandatory)][string]$ProfilePath)
-    Ensure-Directory (Split-Path -Parent $ProfilePath)
-    $block = Get-ProfileBlock
-    $content = if (Test-Path -LiteralPath $ProfilePath) { Get-Content -LiteralPath $ProfilePath -Raw } else { "" }
+function Set-ManagedBlock {
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [Parameter(Mandatory)][string]$Block,
+        [switch]$Bash   # write LF + UTF-8 without BOM (required by bash/MSYS)
+    )
+    Ensure-Directory (Split-Path -Parent $Path)
+    $nl = if ($Bash) { "`n" } else { [Environment]::NewLine }
+    $content = if (Test-Path -LiteralPath $Path) { Get-Content -LiteralPath $Path -Raw } else { "" }
     $pattern = "(?s)" + [regex]::Escape($ManagedStart) + ".*?" + [regex]::Escape($ManagedEnd) + "\r?\n?"
     if ($content -match [regex]::Escape($ManagedStart)) {
-        $content = [regex]::Replace($content, $pattern, $block + [Environment]::NewLine)
+        $content = [regex]::Replace($content, $pattern, ($Block -replace '\$', '$$$$') + $nl)
     } else {
-        if ($content.Length -gt 0 -and -not $content.EndsWith([Environment]::NewLine)) { $content += [Environment]::NewLine }
-        $content += $block + [Environment]::NewLine
+        if ($content.Length -gt 0 -and -not $content.EndsWith($nl)) { $content += $nl }
+        $content += $Block + $nl
     }
-    Set-Content -LiteralPath $ProfilePath -Value $content -Encoding UTF8
-    Write-Step "Updated $ProfilePath"
+    if ($Bash) {
+        # bash chokes on a UTF-8 BOM and on CRLF inside eval "$(...)"; force LF + no BOM.
+        $lf = ($content -replace "`r`n", "`n") -replace "`r", "`n"
+        [System.IO.File]::WriteAllText($Path, $lf, (New-Object System.Text.UTF8Encoding($false)))
+    } else {
+        Set-Content -LiteralPath $Path -Value $content -Encoding UTF8
+    }
+    Write-Step "Updated $Path"
+}
+
+function Update-ManagedProfile {
+    param([Parameter(Mandatory)][string]$ProfilePath)
+    Set-ManagedBlock -Path $ProfilePath -Block (Get-ProfileBlock)
+}
+
+# ---------------------------------------------------------------------------
+# Git Bash / MSYS bash (Windows) — same comprehensive QoL block as rice.sh
+# ---------------------------------------------------------------------------
+
+function Get-BashBlock {
+    # Kept byte-for-byte in sync with rice.sh `bash_managed_block windows`.
+    # Single-quoted here-string: $ and \ are literal, exactly what bash wants.
+    return @'
+# --- rice-managed start ---
+export PATH="$HOME/.local/bin:$PATH"
+
+case $- in
+  *i*)
+    # --- history: big, deduped, shared, timestamped -----------------------
+    HISTSIZE=100000
+    HISTFILESIZE=200000
+    HISTCONTROL=ignoreboth:erasedups
+    HISTTIMEFORMAT='%F %T '
+    HISTIGNORE='ls:ll:la:cd:pwd:clear:exit:history:bg:fg'
+    shopt -s histappend cmdhist 2>/dev/null
+    PROMPT_COMMAND="history -a${PROMPT_COMMAND:+; $PROMPT_COMMAND}"
+
+    # --- sane interactive shell options -----------------------------------
+    shopt -s checkwinsize globstar nocaseglob extglob dotglob 2>/dev/null
+    shopt -s autocd cdspell dirspell 2>/dev/null
+
+    # --- readline: Tab shows the LIST of matches (not cycle-one-at-a-time) -
+    bind 'set show-all-if-ambiguous on'     2>/dev/null  # first Tab lists matches
+    bind 'set show-all-if-unmodified on'    2>/dev/null
+    bind 'set completion-ignore-case on'    2>/dev/null
+    bind 'set completion-map-case on'       2>/dev/null  # treat - and _ alike
+    bind 'set colored-stats on'             2>/dev/null
+    bind 'set colored-completion-prefix on' 2>/dev/null
+    bind 'set visible-stats on'             2>/dev/null
+    bind 'set mark-symlinked-directories on' 2>/dev/null
+    bind 'set page-completions off'         2>/dev/null
+    bind 'set completion-query-items 200'   2>/dev/null
+    bind '"\e[A": history-search-backward'  2>/dev/null  # Up = prefix history search
+    bind '"\e[B": history-search-forward'   2>/dev/null  # Down = prefix history search
+    bind '"\t": complete'                   2>/dev/null  # Tab = complete + list, never menu-cycle
+
+    # --- programmable completion ------------------------------------------
+    if ! shopt -oq posix; then
+      if [ -r /usr/share/bash-completion/bash_completion ]; then
+        . /usr/share/bash-completion/bash_completion
+      elif [ -r /etc/bash_completion ]; then
+        . /etc/bash_completion
+      fi
+    fi
+
+    # --- fastfetch greeting -----------------------------------------------
+    if command -v fastfetch >/dev/null 2>&1 && [ -z "${FASTFETCH_RAN:-}" ]; then
+      export FASTFETCH_RAN=1
+      fastfetch
+    fi
+
+    # --- oh-my-posh prompt -------------------------------------------------
+    if command -v oh-my-posh >/dev/null 2>&1; then
+      if [ -f "$HOME/.cache/oh-my-posh/themes/atomic.omp.json" ]; then
+        eval "$(oh-my-posh init bash --config "$HOME/.cache/oh-my-posh/themes/atomic.omp.json")"
+      else
+        eval "$(oh-my-posh init bash)"
+      fi
+    fi
+
+    [ -r "$HOME/.config/rice/theme.sh" ] && . "$HOME/.config/rice/theme.sh"
+
+    # --- modern CLI replacements ------------------------------------------
+    if command -v eza >/dev/null 2>&1; then
+      alias ls='eza --group-directories-first --icons=auto'
+      alias ll='eza -lah --group-directories-first --icons=auto --git'
+      alias la='eza -a --group-directories-first --icons=auto'
+      alias lt='eza --tree --level=2 --icons=auto'
+      alias ltt='eza --tree --level=4 --icons=auto'
+    else
+      alias ll='ls -alF'
+      alias la='ls -A'
+      alias l='ls -CF'
+    fi
+    if command -v bat >/dev/null 2>&1; then
+      alias cat='bat --paging=never'
+      export BAT_PAGER='less -RF'
+      export MANPAGER="sh -c 'col -bx | bat -l man -p'"
+      export MANROFFOPT='-c'
+    elif command -v batcat >/dev/null 2>&1; then
+      alias bat='batcat'
+      alias cat='batcat --paging=never'
+      export MANPAGER="sh -c 'col -bx | batcat -l man -p'"
+      export MANROFFOPT='-c'
+    fi
+    if ! command -v fd >/dev/null 2>&1 && command -v fdfind >/dev/null 2>&1; then
+      alias fd='fdfind'
+    fi
+    command -v rg >/dev/null 2>&1 && alias grep='rg'
+
+    # --- fzf: fuzzy finder, themed preview, history & file widgets ---------
+    if command -v rg >/dev/null 2>&1; then
+      export FZF_DEFAULT_COMMAND='rg --files --hidden --glob "!.git/*"'
+      export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
+    elif command -v fd >/dev/null 2>&1; then
+      export FZF_DEFAULT_COMMAND='fd --type f --hidden --exclude .git'
+      export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
+    fi
+    if command -v bat >/dev/null 2>&1; then
+      export FZF_CTRL_T_OPTS="--preview 'bat --color=always --style=numbers --line-range=:200 {}'"
+    elif command -v batcat >/dev/null 2>&1; then
+      export FZF_CTRL_T_OPTS="--preview 'batcat --color=always --style=numbers --line-range=:200 {}'"
+    fi
+    export FZF_CTRL_R_OPTS="--reverse"
+    export FZF_ALT_C_OPTS="--preview 'ls -la {}'"
+    if command -v fzf >/dev/null 2>&1; then
+      if fzf --bash >/dev/null 2>&1; then
+        eval "$(fzf --bash)"
+      else
+        for __f in /usr/share/fzf/key-bindings.bash /usr/share/doc/fzf/examples/key-bindings.bash /usr/share/fzf/shell/key-bindings.bash; do
+          [ -r "$__f" ] && . "$__f" && break
+        done
+        for __f in /usr/share/fzf/completion.bash /usr/share/doc/fzf/examples/completion.bash /usr/share/fzf/shell/completion.bash; do
+          [ -r "$__f" ] && . "$__f" && break
+        done
+      fi
+    fi
+
+    # --- zoxide: smarter cd (use `z <dir>`, `zi` for interactive) --------
+    command -v zoxide >/dev/null 2>&1 && eval "$(zoxide init bash)"
+
+    # --- handy aliases & functions ----------------------------------------
+    alias ..='cd ..'
+    alias ...='cd ../..'
+    alias ....='cd ../../..'
+    alias mkdir='mkdir -p'
+    alias df='df -h'
+    alias du='du -h'
+    alias free='free -h'
+    alias path='echo "$PATH" | tr ":" "\n"'
+    alias ports='ss -tulpn 2>/dev/null || netstat -tulpn'
+    alias reload='exec "$BASH"'
+    mkcd() { mkdir -p -- "$1" && cd -- "$1"; }
+    extract() {
+      [ -f "$1" ] || { echo "extract: '$1' is not a file" >&2; return 1; }
+      case "$1" in
+        *.tar.bz2|*.tbz2) tar xjf "$1" ;; *.tar.gz|*.tgz) tar xzf "$1" ;;
+        *.tar.xz) tar xJf "$1" ;; *.tar) tar xf "$1" ;;
+        *.bz2) bunzip2 "$1" ;; *.gz) gunzip "$1" ;; *.xz) unxz "$1" ;;
+        *.zip) unzip "$1" ;; *.rar) unrar x "$1" ;; *.7z) 7z x "$1" ;;
+        *) echo "extract: don't know how to extract '$1'" >&2; return 1 ;;
+      esac
+    }
+
+    # --- git shortcuts -----------------------------------------------------
+    alias gst='git status'
+    alias ga='git add'
+    alias gc='git commit'
+    alias gco='git checkout'
+    alias gsw='git switch'
+    alias gp='git push'
+    alias gl='git pull'
+    alias gd='git diff'
+    alias gb='git branch'
+    alias glog='git log --oneline --graph --decorate'
+    ;;
+esac
+
+# Add your own host/ssh shortcut aliases here.
+alias update='winget upgrade --all --include-unknown --accept-source-agreements --accept-package-agreements'
+# --- rice-managed end ---
+'@
+}
+
+function Configure-GitBash {
+    # Rice Git Bash / MSYS2 bash if one is present. Writes ~/.bashrc and makes
+    # the login ~/.bash_profile source it (Git for Windows uses a login shell).
+    $bashFound = (Get-Command bash -ErrorAction SilentlyContinue) -ne $null
+    if (-not $bashFound) {
+        $candidates = @(
+            (Join-Path $env:ProgramFiles 'Git\bin\bash.exe'),
+            (Join-Path ${env:ProgramFiles(x86)} 'Git\bin\bash.exe'),
+            (Join-Path $env:LOCALAPPDATA 'Programs\Git\bin\bash.exe')
+        )
+        foreach ($c in $candidates) { if ($c -and (Test-Path -LiteralPath $c)) { $bashFound = $true; break } }
+    }
+    if (-not $bashFound) { Write-Step "No Git Bash / MSYS bash detected; skipping bash rice"; return }
+
+    $bashrc = Join-Path $HomePath ".bashrc"
+    Set-ManagedBlock -Path $bashrc -Block (Get-BashBlock) -Bash
+
+    $bashProfile = Join-Path $HomePath ".bash_profile"
+    $sourceBlock = "$ManagedStart`n# Load ~/.bashrc for login shells (Git Bash starts a login shell).`nif [ -f ""`$HOME/.bashrc"" ]; then . ""`$HOME/.bashrc""; fi`n$ManagedEnd"
+    Set-ManagedBlock -Path $bashProfile -Block $sourceBlock -Bash
+    Write-Step "Configured Git Bash (~/.bashrc + ~/.bash_profile)"
 }
 
 # ---------------------------------------------------------------------------
@@ -836,6 +1095,7 @@ $profiles = @(
 foreach ($profilePath in $profiles) {
     Update-ManagedProfile -ProfilePath $profilePath
 }
+Configure-GitBash
 Update-Terminals
 
 Write-Step "Windows rice complete. Open a new PowerShell tab to see it."

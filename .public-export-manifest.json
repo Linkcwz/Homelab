@@ -76,19 +76,19 @@
     },
     {
       "path": "utilities/rice/README.md",
-      "sha256": "0f3a244d376f84638da319122859e656c0ea8f21588f2ad9d38a6d90d0e4fc84"
+      "sha256": "62f43b8d12e12028710c636795001c7e8e314e17e5a2eacaee1000bb13799152"
     },
     {
       "path": "utilities/rice/rice.cmd",
-      "sha256": "c3d31c01ce3ef156f373cf1227dc4dd58afcae5df2f43ce39096a3575d258c0e"
+      "sha256": "f8aa628dea05dcdf3373679a330c2e54f4751a2cd28d90aba14f7bc46dd34a35"
     },
     {
       "path": "utilities/rice/rice.ps1",
-      "sha256": "9ad8d4cb8f9432ee6300d6c9a9ad944d91bf6727d4c4da185977a0b4191a36ef"
+      "sha256": "4abf98336335af245475567af242e7ccdabd8dd2fbdd16f09deee8dd2110f15a"
     },
     {
       "path": "utilities/rice/rice.sh",
-      "sha256": "3fb37aa8f7a6a3fe77ff50845dc43ff160f9a2f87a00dbad71847fad25cccf56"
+      "sha256": "a2fb17d98366127b356726c71e58725dc173d4ce43a2c3ffa10abf47f806185c"
     },
     {
       "path": "utilities/windows/borderless-image-viewer/Borderless-Image-Viewer.cmd",

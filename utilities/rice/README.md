@@ -6,11 +6,14 @@ Windows. They are intended to be readable, rerunnable, and easy to fork.
 ## One File, Both Platforms
 
 `rice.cmd` is a true zero-dependency `cmd`/`sh` polyglot. Run the *same* file
-under `cmd` on Windows or `sh` on Linux and it dispatches to the matching ricer
-below — using only the shell each OS already ships.
+under `cmd` on Windows or a POSIX shell on Linux and it dispatches to the
+matching ricer below — using only the shell each OS already ships. On Linux the
+shell arm re-execs itself under `bash` automatically, so it works even when
+`/bin/sh` is `dash` (Ubuntu/Debian) and even when launched from `fish`/`zsh`.
 
 ```sh
-sh ./rice.cmd      # Linux / macOS
+chmod +x ./rice.cmd && ./rice.cmd      # Linux / macOS (any login shell)
+bash ./rice.cmd                        # equivalent, no chmod needed
 ```
 
 ```powershell
@@ -26,7 +29,12 @@ to **Solarized Dark** (Solarized Light and `none` are also offered). Pass
 `rice.sh` detects common distribution families and package managers, installs
 the available command-line tools (eza, bat, ripgrep, fd, fzf, zoxide), installs
 FiraCode Nerd Font and Oh My Posh, configures Bash, Zsh, and Fish, themes every
-installed terminal emulator to match. It can also configure OpenAI Codex and
+installed terminal emulator to match. Each shell gets a deep quality-of-life
+layer: big deduped timestamped history, sane shell options, fzf widgets with a
+bat preview, zoxide (`z`), modern `ls`/`cat`/`grep` (eza/bat/rg), `mkcd`/
+`extract`/`..`/`...` helpers, git shortcuts, and — per the request — **Tab shows
+a completion *list* instead of cycling one match at a time** (bash via
+`show-all-if-ambiguous`, zsh via `menu select`, fish via `complete-and-search`). It can also configure OpenAI Codex and
 Claude Code for unattended local execution, but only when you opt in with
 `--with-agent-config` (off by default).
 
@@ -65,8 +73,13 @@ elevated privileges.
 
 `rice.ps1` uses WinGet for Fastfetch, Oh My Posh, and the QoL CLI tools; installs
 FiraCode Nerd Font for the current user; writes managed PowerShell profile
-blocks; and themes Windows Terminal (font + a generated `SharedRice` color
-scheme) plus WezTerm/Alacritty when present. It can optionally install and
+blocks (history search on the arrow keys, `Tab` = a completion **list** via
+`MenuComplete`, prediction list view, eza/bat/rg/fd functions, zoxide, fzf,
+`mkcd`/`which`/`touch` and git shortcuts); and themes Windows Terminal (font + a
+generated `SharedRice` color scheme) plus WezTerm/Alacritty when present. If
+**Git Bash / MSYS** is present it also rices `~/.bashrc` (and makes `~/.bash_profile`
+load it) with the exact same bash QoL layer as the Linux ricer — written LF +
+BOM-free so bash accepts it. It can optionally install and
 configure OpenAI Codex and Claude Code for unattended local execution with
 `-WithAgentConfig` (off by default).
 

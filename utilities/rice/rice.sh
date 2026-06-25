@@ -1,4 +1,12 @@
 #!/usr/bin/env bash
+# Re-exec under bash when started by a POSIX /bin/sh (dash on Ubuntu/Debian).
+# Running `./rice.sh` uses the shebang, but `sh rice.sh` would feed bashisms
+# (set -o pipefail, [[ ]], arrays) to dash and fail; re-exec fixes that.
+if [ -z "${BASH_VERSION:-}" ]; then
+  if command -v bash >/dev/null 2>&1; then exec bash "$0" "$@"; fi
+  echo "rice.sh requires bash. Install bash and run: bash $0" >&2
+  exit 1
+fi
 set -euo pipefail
 
 # Native Linux ricer for any distro + every terminal emulator that is installed.
@@ -798,32 +806,90 @@ replace_managed_block() {
 }
 
 configure_bash() {
-  local block
-  block="$(cat <<'EOF'
-# --- rice-managed start ---
-export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
+  replace_managed_block "$BASHRC" "$(bash_managed_block linux)"
+}
 
-case $- in
+# bash_managed_block PLATFORM  (PLATFORM = linux | windows)
+# Emits the shared, comprehensive bash rice block. Linux and Windows Git Bash
+# share everything except PATH seeding and the `update` helper, so both the
+# Linux ricer (rice.sh) and the Windows ricer (rice.ps1, which re-emits an
+# equivalent block) stay in lock-step on the interesting QoL bits.
+bash_managed_block() {
+  local platform="${1:-linux}" update_alias path_line
+  if [ "$platform" = windows ]; then
+    path_line='export PATH="$HOME/.local/bin:$PATH"'
+    update_alias="alias update='winget upgrade --all --include-unknown --accept-source-agreements --accept-package-agreements'"
+  else
+    path_line='export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"'
+    update_alias="alias update='if command -v apt >/dev/null 2>&1; then sudo apt update -y && sudo apt full-upgrade -y; elif command -v pacman >/dev/null 2>&1; then sudo pacman -Syu --noconfirm; elif command -v dnf >/dev/null 2>&1; then sudo dnf upgrade -y; elif command -v zypper >/dev/null 2>&1; then sudo zypper --non-interactive update; elif command -v apk >/dev/null 2>&1; then sudo apk upgrade; fi'"
+  fi
+  cat <<EOF
+# --- rice-managed start ---
+$path_line
+
+case \$- in
   *i*)
-    if command -v fastfetch >/dev/null 2>&1 && [ -z "${FASTFETCH_RAN:-}" ]; then
-      export FASTFETCH_RAN=1
-      fastfetch
-    fi
-    if command -v oh-my-posh >/dev/null 2>&1; then
-      if [ -f "$HOME/.cache/oh-my-posh/themes/atomic.omp.json" ]; then
-        eval "$(oh-my-posh init bash --config "$HOME/.cache/oh-my-posh/themes/atomic.omp.json")"
-      else
-        eval "$(oh-my-posh init bash)"
+    # --- history: big, deduped, shared, timestamped -----------------------
+    HISTSIZE=100000
+    HISTFILESIZE=200000
+    HISTCONTROL=ignoreboth:erasedups
+    HISTTIMEFORMAT='%F %T '
+    HISTIGNORE='ls:ll:la:cd:pwd:clear:exit:history:bg:fg'
+    shopt -s histappend cmdhist 2>/dev/null
+    PROMPT_COMMAND="history -a\${PROMPT_COMMAND:+; \$PROMPT_COMMAND}"
+
+    # --- sane interactive shell options -----------------------------------
+    shopt -s checkwinsize globstar nocaseglob extglob dotglob 2>/dev/null
+    shopt -s autocd cdspell dirspell 2>/dev/null
+
+    # --- readline: Tab shows the LIST of matches (not cycle-one-at-a-time) -
+    bind 'set show-all-if-ambiguous on'     2>/dev/null  # first Tab lists matches
+    bind 'set show-all-if-unmodified on'    2>/dev/null
+    bind 'set completion-ignore-case on'    2>/dev/null
+    bind 'set completion-map-case on'       2>/dev/null  # treat - and _ alike
+    bind 'set colored-stats on'             2>/dev/null
+    bind 'set colored-completion-prefix on' 2>/dev/null
+    bind 'set visible-stats on'             2>/dev/null
+    bind 'set mark-symlinked-directories on' 2>/dev/null
+    bind 'set page-completions off'         2>/dev/null
+    bind 'set completion-query-items 200'   2>/dev/null
+    bind '"\e[A": history-search-backward'  2>/dev/null  # Up = prefix history search
+    bind '"\e[B": history-search-forward'   2>/dev/null  # Down = prefix history search
+    bind '"\t": complete'                   2>/dev/null  # Tab = complete + list, never menu-cycle
+
+    # --- programmable completion ------------------------------------------
+    if ! shopt -oq posix; then
+      if [ -r /usr/share/bash-completion/bash_completion ]; then
+        . /usr/share/bash-completion/bash_completion
+      elif [ -r /etc/bash_completion ]; then
+        . /etc/bash_completion
       fi
     fi
 
-    [ -r "$HOME/.config/rice/theme.sh" ] && . "$HOME/.config/rice/theme.sh"
+    # --- fastfetch greeting -----------------------------------------------
+    if command -v fastfetch >/dev/null 2>&1 && [ -z "\${FASTFETCH_RAN:-}" ]; then
+      export FASTFETCH_RAN=1
+      fastfetch
+    fi
 
+    # --- oh-my-posh prompt -------------------------------------------------
+    if command -v oh-my-posh >/dev/null 2>&1; then
+      if [ -f "\$HOME/.cache/oh-my-posh/themes/atomic.omp.json" ]; then
+        eval "\$(oh-my-posh init bash --config "\$HOME/.cache/oh-my-posh/themes/atomic.omp.json")"
+      else
+        eval "\$(oh-my-posh init bash)"
+      fi
+    fi
+
+    [ -r "\$HOME/.config/rice/theme.sh" ] && . "\$HOME/.config/rice/theme.sh"
+
+    # --- modern CLI replacements ------------------------------------------
     if command -v eza >/dev/null 2>&1; then
       alias ls='eza --group-directories-first --icons=auto'
       alias ll='eza -lah --group-directories-first --icons=auto --git'
       alias la='eza -a --group-directories-first --icons=auto'
       alias lt='eza --tree --level=2 --icons=auto'
+      alias ltt='eza --tree --level=4 --icons=auto'
     else
       alias ll='ls -alF'
       alias la='ls -A'
@@ -831,39 +897,195 @@ case $- in
     fi
     if command -v bat >/dev/null 2>&1; then
       alias cat='bat --paging=never'
+      export BAT_PAGER='less -RF'
+      export MANPAGER="sh -c 'col -bx | bat -l man -p'"
+      export MANROFFOPT='-c'
     elif command -v batcat >/dev/null 2>&1; then
       alias bat='batcat'
       alias cat='batcat --paging=never'
+      export MANPAGER="sh -c 'col -bx | batcat -l man -p'"
+      export MANROFFOPT='-c'
     fi
     if ! command -v fd >/dev/null 2>&1 && command -v fdfind >/dev/null 2>&1; then
       alias fd='fdfind'
     fi
+    command -v rg >/dev/null 2>&1 && alias grep='rg'
+
+    # --- fzf: fuzzy finder, themed preview, history & file widgets ---------
     if command -v rg >/dev/null 2>&1; then
       export FZF_DEFAULT_COMMAND='rg --files --hidden --glob "!.git/*"'
-      export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
+      export FZF_CTRL_T_COMMAND="\$FZF_DEFAULT_COMMAND"
+    elif command -v fd >/dev/null 2>&1; then
+      export FZF_DEFAULT_COMMAND='fd --type f --hidden --exclude .git'
+      export FZF_CTRL_T_COMMAND="\$FZF_DEFAULT_COMMAND"
     fi
+    if command -v bat >/dev/null 2>&1; then
+      export FZF_CTRL_T_OPTS="--preview 'bat --color=always --style=numbers --line-range=:200 {}'"
+    elif command -v batcat >/dev/null 2>&1; then
+      export FZF_CTRL_T_OPTS="--preview 'batcat --color=always --style=numbers --line-range=:200 {}'"
+    fi
+    export FZF_CTRL_R_OPTS="--reverse"
+    export FZF_ALT_C_OPTS="--preview 'ls -la {}'"
     if command -v fzf >/dev/null 2>&1; then
       if fzf --bash >/dev/null 2>&1; then
-        eval "$(fzf --bash)"
+        eval "\$(fzf --bash)"
       else
         for __f in /usr/share/fzf/key-bindings.bash /usr/share/doc/fzf/examples/key-bindings.bash /usr/share/fzf/shell/key-bindings.bash; do
-          [ -r "$__f" ] && . "$__f" && break
+          [ -r "\$__f" ] && . "\$__f" && break
         done
         for __f in /usr/share/fzf/completion.bash /usr/share/doc/fzf/examples/completion.bash /usr/share/fzf/shell/completion.bash; do
-          [ -r "$__f" ] && . "$__f" && break
+          [ -r "\$__f" ] && . "\$__f" && break
         done
       fi
     fi
-    command -v zoxide >/dev/null 2>&1 && eval "$(zoxide init bash)"
+
+    # --- zoxide: smarter cd (use \`z <dir>\`, \`zi\` for interactive) --------
+    command -v zoxide >/dev/null 2>&1 && eval "\$(zoxide init bash)"
+
+    # --- handy aliases & functions ----------------------------------------
+    alias ..='cd ..'
+    alias ...='cd ../..'
+    alias ....='cd ../../..'
+    alias mkdir='mkdir -p'
+    alias df='df -h'
+    alias du='du -h'
+    alias free='free -h'
+    alias path='echo "\$PATH" | tr ":" "\n"'
+    alias ports='ss -tulpn 2>/dev/null || netstat -tulpn'
+    alias reload='exec "\$BASH"'
+    mkcd() { mkdir -p -- "\$1" && cd -- "\$1"; }
+    extract() {
+      [ -f "\$1" ] || { echo "extract: '\$1' is not a file" >&2; return 1; }
+      case "\$1" in
+        *.tar.bz2|*.tbz2) tar xjf "\$1" ;; *.tar.gz|*.tgz) tar xzf "\$1" ;;
+        *.tar.xz) tar xJf "\$1" ;; *.tar) tar xf "\$1" ;;
+        *.bz2) bunzip2 "\$1" ;; *.gz) gunzip "\$1" ;; *.xz) unxz "\$1" ;;
+        *.zip) unzip "\$1" ;; *.rar) unrar x "\$1" ;; *.7z) 7z x "\$1" ;;
+        *) echo "extract: don't know how to extract '\$1'" >&2; return 1 ;;
+      esac
+    }
+
+    # --- git shortcuts -----------------------------------------------------
+    alias gst='git status'
+    alias ga='git add'
+    alias gc='git commit'
+    alias gco='git checkout'
+    alias gsw='git switch'
+    alias gp='git push'
+    alias gl='git pull'
+    alias gd='git diff'
+    alias gb='git branch'
+    alias glog='git log --oneline --graph --decorate'
     ;;
 esac
+
+# Add your own host/ssh shortcut aliases here.
+$update_alias
+# --- rice-managed end ---
+EOF
+}
+
+configure_zsh() {
+  # zsh gets a native block (oh-my-posh/zoxide/fzf init for zsh + menu-select
+  # completion), not the bash block. Only written if a real ~/.zshrc exists or
+  # zsh is installed, so bash-only users don't get a stray file.
+  have zsh || [ -f "$ZSHRC" ] || return 0
+  local block
+  block="$(cat <<'EOF'
+# --- rice-managed start ---
+export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
+
+# history: big, deduped, shared, timestamped
+HISTSIZE=100000
+SAVEHIST=200000
+HISTFILE="$HOME/.zsh_history"
+setopt APPEND_HISTORY INC_APPEND_HISTORY SHARE_HISTORY EXTENDED_HISTORY
+setopt HIST_IGNORE_ALL_DUPS HIST_IGNORE_SPACE HIST_REDUCE_BLANKS HIST_VERIFY
+setopt AUTO_CD EXTENDED_GLOB GLOB_DOTS NO_BEEP INTERACTIVE_COMMENTS
+
+# completion: Tab shows a navigable LIST (menu select), case-insensitive
+autoload -Uz compinit && compinit -i
+zstyle ':completion:*' menu select
+zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}' 'r:|=*' 'l:|=* r:|=*'
+zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"
+zstyle ':completion:*' group-name ''
+zstyle ':completion:*:descriptions' format '%F{yellow}-- %d --%f'
+
+if [ -z "${FASTFETCH_RAN:-}" ] && command -v fastfetch >/dev/null 2>&1; then
+  export FASTFETCH_RAN=1
+  fastfetch
+fi
+if command -v oh-my-posh >/dev/null 2>&1; then
+  if [ -f "$HOME/.cache/oh-my-posh/themes/atomic.omp.json" ]; then
+    eval "$(oh-my-posh init zsh --config "$HOME/.cache/oh-my-posh/themes/atomic.omp.json")"
+  else
+    eval "$(oh-my-posh init zsh)"
+  fi
+fi
+[ -r "$HOME/.config/rice/theme.sh" ] && . "$HOME/.config/rice/theme.sh"
+
+if command -v eza >/dev/null 2>&1; then
+  alias ls='eza --group-directories-first --icons=auto'
+  alias ll='eza -lah --group-directories-first --icons=auto --git'
+  alias la='eza -a --group-directories-first --icons=auto'
+  alias lt='eza --tree --level=2 --icons=auto'
+fi
+if command -v bat >/dev/null 2>&1; then
+  alias cat='bat --paging=never'
+elif command -v batcat >/dev/null 2>&1; then
+  alias bat='batcat'; alias cat='batcat --paging=never'
+fi
+if ! command -v fd >/dev/null 2>&1 && command -v fdfind >/dev/null 2>&1; then
+  alias fd='fdfind'
+fi
+if command -v rg >/dev/null 2>&1; then
+  export FZF_DEFAULT_COMMAND='rg --files --hidden --glob "!.git/*"'
+  export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
+fi
+if command -v fzf >/dev/null 2>&1; then
+  if fzf --zsh >/dev/null 2>&1; then
+    eval "$(fzf --zsh)"
+  else
+    for __f in /usr/share/fzf/key-bindings.zsh /usr/share/doc/fzf/examples/key-bindings.zsh; do
+      [ -r "$__f" ] && . "$__f" && break
+    done
+    for __f in /usr/share/fzf/completion.zsh /usr/share/doc/fzf/examples/completion.zsh; do
+      [ -r "$__f" ] && . "$__f" && break
+    done
+  fi
+fi
+command -v zoxide >/dev/null 2>&1 && eval "$(zoxide init zsh)"
+
+# zsh-autosuggestions / syntax-highlighting if the distro packaged them
+for __p in /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh \
+           /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh; do
+  [ -r "$__p" ] && . "$__p" && break
+done
+for __p in /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh \
+           /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh; do
+  [ -r "$__p" ] && . "$__p" && break
+done
+
+alias ..='cd ..'
+alias ...='cd ../..'
+alias mkdir='mkdir -p'
+mkcd() { mkdir -p -- "$1" && cd -- "$1"; }
+alias gst='git status'
+alias ga='git add'
+alias gc='git commit'
+alias gco='git checkout'
+alias gsw='git switch'
+alias gp='git push'
+alias gl='git pull'
+alias gd='git diff'
+alias gb='git branch'
+alias glog='git log --oneline --graph --decorate'
 
 # Add your own host/ssh shortcut aliases here.
 alias update='if command -v apt >/dev/null 2>&1; then sudo apt update -y && sudo apt full-upgrade -y; elif command -v pacman >/dev/null 2>&1; then sudo pacman -Syu --noconfirm; elif command -v dnf >/dev/null 2>&1; then sudo dnf upgrade -y; elif command -v zypper >/dev/null 2>&1; then sudo zypper --non-interactive update; elif command -v apk >/dev/null 2>&1; then sudo apk upgrade; fi'
 # --- rice-managed end ---
 EOF
 )"
-  replace_managed_block "$BASHRC" "$block"
   replace_managed_block "$ZSHRC" "$block"
 }
 
@@ -887,6 +1109,7 @@ if command -q oh-my-posh
 end
 
 if status is-interactive
+    set -g fish_greeting ''
     test -r "$HOME/.config/rice/theme.fish"; and source "$HOME/.config/rice/theme.fish"
 
     if command -q eza
@@ -906,21 +1129,57 @@ if status is-interactive
     end
     if command -q rg
         set -gx FZF_DEFAULT_COMMAND 'rg --files --hidden --glob "!.git/*"'
+        alias grep='rg'
+    else if command -q fd
+        set -gx FZF_DEFAULT_COMMAND 'fd --type f --hidden --exclude .git'
+    end
+    set -gx FZF_CTRL_T_COMMAND $FZF_DEFAULT_COMMAND
+    if command -q bat
+        set -gx FZF_CTRL_T_OPTS "--preview 'bat --color=always --style=numbers --line-range=:200 {}'"
+        set -gx MANPAGER "sh -c 'col -bx | bat -l man -p'"
+        set -gx MANROFFOPT -c
+    else if command -q batcat
+        set -gx FZF_CTRL_T_OPTS "--preview 'batcat --color=always --style=numbers --line-range=:200 {}'"
     end
     command -q zoxide; and zoxide init fish | source
+    # fzf.fish plugin (installed by fisher) — Ctrl-Alt-F files, Ctrl-R history, etc.
+    command -q fzf; and functions -q fzf_configure_bindings; and fzf_configure_bindings
 
+    # git abbreviations (expand inline as you type)
     abbr -a gst 'git status'
     abbr -a ga 'git add'
+    abbr -a gaa 'git add --all'
     abbr -a gc 'git commit'
+    abbr -a gcm 'git commit -m'
+    abbr -a gca 'git commit --amend'
     abbr -a gco 'git checkout'
     abbr -a gsw 'git switch'
     abbr -a gp 'git push'
     abbr -a gl 'git pull'
+    abbr -a gf 'git fetch --all --prune'
     abbr -a gd 'git diff'
     abbr -a gb 'git branch'
+    abbr -a grb 'git rebase'
+    abbr -a gss 'git stash'
     abbr -a glog 'git log --oneline --graph --decorate'
 
+    # quality-of-life aliases / functions
+    alias mkdir='mkdir -p'
+    alias df='df -h'
+    alias du='du -h'
+    alias ..='cd ..'
+    alias ...='cd ../..'
+    alias ....='cd ../../..'
+    function mkcd --description 'mkdir -p then cd'
+        mkdir -p -- $argv[1]; and cd -- $argv[1]
+    end
+    function ports --description 'listening sockets'
+        ss -tulpn 2>/dev/null; or netstat -tulpn
+    end
+
+    # Tab opens a searchable LIST of completions, not a one-at-a-time cycle.
     bind \t complete-and-search
+    bind -k btab complete
 end
 
 # Add your own host shortcuts and helper functions here.
@@ -1300,6 +1559,7 @@ main() {
   install_theme
   write_theme_env
   configure_bash
+  configure_zsh
   configure_fish
   install_fisher_plugins
   write_fastfetch
